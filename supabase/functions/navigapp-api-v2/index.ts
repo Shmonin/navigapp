@@ -1,10 +1,16 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
 };
+
+// Supabase client with hardcoded values (Edge Functions don't have access to custom env vars)
+const supabaseUrl = 'https://zcvaxzakzkszoxienepi.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpjdmF4emFremtzem94aWVuZXBpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzI4Njg1NzMsImV4cCI6MjA0ODQ0NDU3M30.6uG5_PcOOW5UxqpGTlLjqgKAZuM9jJ0GJsHAcMH2YPU';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 serve(async (req) => {
   // Handle CORS preflight
@@ -77,9 +83,9 @@ serve(async (req) => {
         }
       }
 
-      // Return user response (temporarily without DB save)
+      // Save user to database
       const user = userData.user;
-      const userId = `user-${user.id}`;
+      const telegramId = String(user.id);
 
       console.log('Authenticated user:', {
         id: user.id,
@@ -88,18 +94,75 @@ serve(async (req) => {
         isDemo: isDemo
       });
 
+      let dbUser = null;
+
+      // Try to save to database (don't fail if it doesn't work)
+      if (!isDemo) {
+        try {
+          // Check if user exists
+          const { data: existingUser } = await supabase
+            .from('users')
+            .select('*')
+            .eq('telegram_id', telegramId)
+            .maybeSingle();
+
+          if (existingUser) {
+            // Update existing user
+            const { data: updatedUser } = await supabase
+              .from('users')
+              .update({
+                first_name: user.first_name,
+                last_name: user.last_name,
+                username: user.username,
+                last_active: new Date().toISOString(),
+              })
+              .eq('telegram_id', telegramId)
+              .select()
+              .single();
+
+            dbUser = updatedUser;
+            console.log('Updated existing user:', updatedUser?.id);
+          } else {
+            // Create new user
+            const { data: newUser } = await supabase
+              .from('users')
+              .insert({
+                telegram_id: telegramId,
+                first_name: user.first_name,
+                last_name: user.last_name,
+                username: user.username,
+                subscription_type: 'free',
+                created_at: new Date().toISOString(),
+                last_active: new Date().toISOString(),
+              })
+              .select()
+              .single();
+
+            dbUser = newUser;
+            console.log('Created new user:', newUser?.id);
+          }
+        } catch (error) {
+          console.error('Database error (non-critical):', error);
+          // Continue without database save
+        }
+      }
+
+      // Use database user if available, otherwise use Telegram data
+      const userId = dbUser?.id || `user-${user.id}`;
+
       return new Response(
         JSON.stringify({
           success: true,
           data: {
             user: {
               id: userId,
-              telegramId: String(user.id),
+              telegramId: telegramId,
               firstName: user.first_name,
               lastName: user.last_name,
               username: user.username,
-              subscriptionType: 'free',
-              isDemo: isDemo
+              subscriptionType: dbUser?.subscription_type || 'free',
+              isDemo: isDemo,
+              savedToDb: !!dbUser
             },
             token: `jwt-${userId}-${Date.now()}`,
             refreshToken: `refresh-${userId}-${Date.now()}`
