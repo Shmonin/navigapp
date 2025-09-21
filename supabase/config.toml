@@ -24,3 +24,6 @@ enabled = true
 
 [functions.navigapp-api]
 verify_jwt = false
+
+[functions.test-api]
+verify_jwt = false

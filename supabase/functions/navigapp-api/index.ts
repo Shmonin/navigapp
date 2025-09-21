@@ -15,7 +15,7 @@ interface RouteHandler {
 const routes: Record<string, RouteHandler> = {};
 
 // Health check endpoint
-routes['/health'] = async () => {
+routes['health'] = async () => {
   return new Response(
     JSON.stringify({
       status: 'ok',
@@ -31,8 +31,30 @@ routes['/health'] = async () => {
   );
 };
 
+// Root endpoint
+routes[''] = async () => {
+  return new Response(
+    JSON.stringify({
+      status: 'ok',
+      message: 'Navigapp API is running',
+      version: '1.0.0',
+      endpoints: {
+        health: '/health',
+        auth: '/auth/telegram',
+        pages: '/pages'
+      }
+    }),
+    {
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json'
+      }
+    }
+  );
+};
+
 // Auth routes
-routes['/auth/telegram'] = async (req: Request) => {
+routes['auth/telegram'] = async (req: Request) => {
   if (req.method !== 'POST') {
     return new Response('Method not allowed', { status: 405, headers: corsHeaders });
   }
@@ -84,7 +106,7 @@ routes['/auth/telegram'] = async (req: Request) => {
 };
 
 // Pages routes
-routes['/pages'] = async (req: Request) => {
+routes['pages'] = async (req: Request) => {
   if (req.method === 'GET') {
     // TODO: Implement get pages
     return new Response(
@@ -160,7 +182,29 @@ serve(async (req) => {
 
   try {
     const url = new URL(req.url);
-    const path = url.pathname.replace('/functions/v1/navigapp-api', '');
+    // Extract path and remove function name prefix
+    let path = url.pathname;
+
+    // Remove any variation of function path prefix
+    const prefixes = [
+      '/functions/v1/navigapp-api',
+      '/navigapp-api'
+    ];
+
+    for (const prefix of prefixes) {
+      if (path.startsWith(prefix)) {
+        path = path.substring(prefix.length);
+        break;
+      }
+    }
+
+    // Remove leading slash
+    if (path.startsWith('/')) {
+      path = path.substring(1);
+    }
+
+    console.log('Original pathname:', url.pathname);
+    console.log('Processed path:', path);
 
     // Find matching route
     const handler = routes[path];
@@ -174,8 +218,9 @@ serve(async (req) => {
       JSON.stringify({
         success: false,
         error: {
-          message: 'Route not found',
-          code: 'NOT_FOUND'
+          message: `Route not found: ${path}`,
+          code: 'NOT_FOUND',
+          availableRoutes: Object.keys(routes)
         }
       }),
       {
