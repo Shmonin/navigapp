@@ -1,16 +1,10 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
 };
-
-// Initialize Supabase client
-const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 serve(async (req) => {
   // Handle CORS preflight
@@ -83,87 +77,32 @@ serve(async (req) => {
         }
       }
 
-      // Create/update user in database
+      // Return user response (temporarily without DB save)
       const user = userData.user;
-      const telegramId = String(user.id);
+      const userId = `user-${user.id}`;
 
-      // Check if user exists
-      const { data: existingUser, error: fetchError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('telegram_id', telegramId)
-        .single();
-
-      let dbUser;
-
-      if (existingUser) {
-        // Update existing user
-        const { data: updatedUser, error: updateError } = await supabase
-          .from('users')
-          .update({
-            first_name: user.first_name,
-            last_name: user.last_name,
-            username: user.username,
-            last_active: new Date().toISOString(),
-          })
-          .eq('telegram_id', telegramId)
-          .select()
-          .single();
-
-        if (updateError) {
-          console.error('Error updating user:', updateError);
-        }
-        dbUser = updatedUser || existingUser;
-      } else {
-        // Create new user
-        const { data: newUser, error: insertError } = await supabase
-          .from('users')
-          .insert({
-            telegram_id: telegramId,
-            first_name: user.first_name,
-            last_name: user.last_name,
-            username: user.username,
-            subscription_type: 'free',
-            created_at: new Date().toISOString(),
-            last_active: new Date().toISOString(),
-          })
-          .select()
-          .single();
-
-        if (insertError) {
-          console.error('Error creating user:', insertError);
-          return new Response(
-            JSON.stringify({
-              success: false,
-              error: {
-                message: 'Failed to create user profile',
-                code: 'DATABASE_ERROR'
-              }
-            }),
-            {
-              status: 500,
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-            }
-          );
-        }
-        dbUser = newUser;
-      }
+      console.log('Authenticated user:', {
+        id: user.id,
+        first_name: user.first_name,
+        username: user.username,
+        isDemo: isDemo
+      });
 
       return new Response(
         JSON.stringify({
           success: true,
           data: {
             user: {
-              id: dbUser.id,
-              telegramId: dbUser.telegram_id,
-              firstName: dbUser.first_name,
-              lastName: dbUser.last_name,
-              username: dbUser.username,
-              subscriptionType: dbUser.subscription_type,
+              id: userId,
+              telegramId: String(user.id),
+              firstName: user.first_name,
+              lastName: user.last_name,
+              username: user.username,
+              subscriptionType: 'free',
               isDemo: isDemo
             },
-            token: `jwt-${dbUser.id}-${Date.now()}`,
-            refreshToken: `refresh-${dbUser.id}-${Date.now()}`
+            token: `jwt-${userId}-${Date.now()}`,
+            refreshToken: `refresh-${userId}-${Date.now()}`
           }
         }),
         {
