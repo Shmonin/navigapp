@@ -7,10 +7,10 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
 };
 
-// Supabase client with hardcoded values (Edge Functions don't have access to custom env vars)
-const supabaseUrl = 'https://zcvaxzakzkszoxienepi.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpjdmF4emFremtzem94aWVuZXBpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzI4Njg1NzMsImV4cCI6MjA0ODQ0NDU3M30.6uG5_PcOOW5UxqpGTlLjqgKAZuM9jJ0GJsHAcMH2YPU';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Supabase client with service_role key for database access
+const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? 'https://zcvaxzakzkszoxienepi.supabase.co';
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 serve(async (req) => {
   // Handle CORS preflight
@@ -96,35 +96,54 @@ serve(async (req) => {
 
       let dbUser = null;
 
-      // Try to save to database (don't fail if it doesn't work)
+      // Save to database (only for real users, not demo)
       if (!isDemo) {
         try {
+          console.log('Attempting to save user to database:', {
+            telegramId,
+            firstName: user.first_name,
+            username: user.username
+          });
+
           // Check if user exists
-          const { data: existingUser } = await supabase
+          const { data: existingUser, error: fetchError } = await supabase
             .from('users')
             .select('*')
             .eq('telegram_id', telegramId)
             .maybeSingle();
 
+          if (fetchError) {
+            console.error('Error fetching existing user:', fetchError);
+          }
+
           if (existingUser) {
+            console.log('User exists, updating:', existingUser.id);
+
             // Update existing user
-            const { data: updatedUser } = await supabase
+            const { data: updatedUser, error: updateError } = await supabase
               .from('users')
               .update({
                 first_name: user.first_name,
                 last_name: user.last_name,
                 username: user.username,
-                last_active: new Date().toISOString(),
+                last_active_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
               })
               .eq('telegram_id', telegramId)
               .select()
               .single();
 
-            dbUser = updatedUser;
-            console.log('Updated existing user:', updatedUser?.id);
+            if (updateError) {
+              console.error('Error updating user:', updateError);
+            } else {
+              dbUser = updatedUser;
+              console.log('Successfully updated user:', updatedUser?.id);
+            }
           } else {
+            console.log('User does not exist, creating new user');
+
             // Create new user
-            const { data: newUser } = await supabase
+            const { data: newUser, error: insertError } = await supabase
               .from('users')
               .insert({
                 telegram_id: telegramId,
@@ -133,17 +152,30 @@ serve(async (req) => {
                 username: user.username,
                 subscription_type: 'free',
                 created_at: new Date().toISOString(),
-                last_active: new Date().toISOString(),
+                last_active_at: new Date().toISOString(),
               })
               .select()
               .single();
 
-            dbUser = newUser;
-            console.log('Created new user:', newUser?.id);
+            if (insertError) {
+              console.error('Error creating user:', insertError);
+              console.error('Insert error details:', {
+                message: insertError.message,
+                details: insertError.details,
+                hint: insertError.hint,
+                code: insertError.code
+              });
+            } else {
+              dbUser = newUser;
+              console.log('Successfully created user:', newUser?.id);
+            }
           }
         } catch (error) {
-          console.error('Database error (non-critical):', error);
-          // Continue without database save
+          console.error('Database operation failed:', error);
+          console.error('Error details:', {
+            message: error.message,
+            stack: error.stack
+          });
         }
       }
 
