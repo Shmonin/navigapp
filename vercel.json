@@ -1,23 +1,7 @@
 {
-  "framework": "vite",
   "buildCommand": "cd frontend && npm run build",
   "outputDirectory": "frontend/dist",
   "installCommand": "cd frontend && npm install && cd ../shared && npm install && npm run build",
-  "devCommand": "cd frontend && npm run dev",
-  "env": {
-    "VITE_API_URL": "@api-url",
-    "VITE_SUPABASE_URL": "@supabase-url",
-    "VITE_SUPABASE_ANON_KEY": "@supabase-anon-key",
-    "VITE_TELEGRAM_BOT_USERNAME": "@telegram-bot-username"
-  },
-  "build": {
-    "env": {
-      "VITE_API_URL": "@api-url-production",
-      "VITE_SUPABASE_URL": "@supabase-url-production",
-      "VITE_SUPABASE_ANON_KEY": "@supabase-anon-key-production",
-      "VITE_TELEGRAM_BOT_USERNAME": "@telegram-bot-username-production"
-    }
-  },
   "headers": [
     {
       "source": "/(.*)",
@@ -43,9 +27,4 @@
       "destination": "/index.html"
     }
   ],
-  "functions": {
-    "app/api/health.ts": {
-      "maxDuration": 10
-    }
-  }
 }
