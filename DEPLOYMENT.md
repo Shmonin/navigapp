@@ -88,8 +88,14 @@ After deployment, test these endpoints:
 
 Update Vercel environment variables with:
 ```
-VITE_TELEGRAM_BOT_USERNAME=your_actual_bot_username
+VITE_TELEGRAM_BOT_USERNAME=Navigapp_bot
 ```
+
+### 4. Bot Configuration
+
+**Bot Token:** `8180571940:AAG8TLcs6ILfmPRFTN9cK14rVl11_n1PSOI`
+**Username:** @Navigapp_bot
+**Web App URL:** https://navigapp.vercel.app
 
 ## Next Steps
 
