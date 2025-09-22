@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useTelegramWebApp } from '../hooks/useTelegramWebApp'
 import { LoadingScreen } from '../components/LoadingScreen'
 
 export const AuthPage = () => {
   const { webApp } = useTelegramWebApp()
+  const navigate = useNavigate()
   const [isLoading, setIsLoading] = useState(true)
   const [authStatus, setAuthStatus] = useState<'pending' | 'success' | 'error'>('pending')
   const [user, setUser] = useState<any>(null)
@@ -40,6 +42,11 @@ export const AuthPage = () => {
           if (result.data.refreshToken) {
             localStorage.setItem('refresh_token', result.data.refreshToken)
           }
+
+          // Redirect to page builder after a short delay
+          setTimeout(() => {
+            navigate('/builder')
+          }, 2000)
         } else {
           setAuthStatus('error')
         }

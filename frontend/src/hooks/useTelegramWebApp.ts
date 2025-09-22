@@ -130,6 +130,8 @@ export const useTelegramWebApp = () => {
     hideMainButton,
     showBackButton,
     hideBackButton,
-    hapticFeedback
+    hapticFeedback,
+    mainButton: webApp?.MainButton,
+    backButton: webApp?.BackButton
   }
 }

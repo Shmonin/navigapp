@@ -3,6 +3,7 @@ import { BrowserRouter } from 'react-router-dom'
 import { useTelegramWebApp } from './hooks/useTelegramWebApp'
 import { AppRouter } from './components/AppRouter'
 import { LoadingScreen } from './components/LoadingScreen'
+import { IconProvider } from './providers/IconProvider'
 
 function App() {
   const { webApp, isReady } = useTelegramWebApp()
@@ -28,11 +29,13 @@ function App() {
   }
 
   return (
-    <div className="twa-root min-h-screen">
-      <BrowserRouter>
-        <AppRouter />
-      </BrowserRouter>
-    </div>
+    <IconProvider>
+      <div className="twa-root min-h-screen">
+        <BrowserRouter>
+          <AppRouter />
+        </BrowserRouter>
+      </div>
+    </IconProvider>
   )
 }
 
