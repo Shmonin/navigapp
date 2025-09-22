@@ -400,32 +400,30 @@ serve(async (req) => {
 
         let dbUser = null;
 
-        if (!isDemo) {
-          // Check if user exists
-          const existingUser = await db.getUserByTelegramId(telegramId);
+        // Check if user exists (for both demo and real users)
+        const existingUser = await db.getUserByTelegramId(telegramId);
 
-          if (existingUser) {
-            // Update existing user
-            dbUser = await db.updateUser(existingUser.id, {
-              firstName: user.first_name,
-              lastName: user.last_name,
-              username: user.username,
-              lastActiveAt: new Date().toISOString()
-            });
-          } else {
-            // Create new user
-            dbUser = await db.createUser({
-              telegramId: telegramId,
-              firstName: user.first_name,
-              lastName: user.last_name,
-              username: user.username,
-              subscriptionType: 'free'
-            });
-          }
+        if (existingUser) {
+          // Update existing user
+          dbUser = await db.updateUser(existingUser.id, {
+            firstName: user.first_name,
+            lastName: user.last_name,
+            username: user.username,
+            lastActiveAt: new Date().toISOString()
+          });
+        } else {
+          // Create new user (for both demo and real users)
+          dbUser = await db.createUser({
+            telegramId: telegramId,
+            firstName: user.first_name,
+            lastName: user.last_name,
+            username: user.username,
+            subscriptionType: 'free'
+          });
         }
 
-        // Generate tokens
-        const userId = dbUser?.id || `user-${user.id}`;
+        // Generate tokens using the database user ID
+        const userId = dbUser.id;
         const authToken = generateAuthToken(userId);
         const refreshToken = generateRefreshToken(userId);
 
@@ -439,9 +437,9 @@ serve(async (req) => {
                 firstName: user.first_name,
                 lastName: user.last_name,
                 username: user.username,
-                subscriptionType: dbUser?.subscription_type || 'free',
+                subscriptionType: dbUser.subscription_type || 'free',
                 isDemo: isDemo,
-                savedToDb: !!dbUser
+                savedToDb: true
               },
               token: authToken,
               refreshToken: refreshToken

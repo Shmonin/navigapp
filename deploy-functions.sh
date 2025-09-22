@@ -39,24 +39,24 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-echo -e "${YELLOW}Deploying navigapp-api-v2 function...${NC}"
-npx supabase@latest functions deploy navigapp-api-v2 --no-verify-jwt
+echo -e "${YELLOW}Deploying navigapp-prisma-api function...${NC}"
+npx supabase@latest functions deploy navigapp-prisma-api --no-verify-jwt
 
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}✅ Function deployed successfully!${NC}"
-    echo -e "${GREEN}API URL: https://zcvaxzakzkszoxienepi.supabase.co/functions/v1/navigapp-api-v2${NC}"
+    echo -e "${GREEN}API URL: https://zcvaxzakzkszoxienepi.supabase.co/functions/v1/navigapp-prisma-api${NC}"
 else
     echo -e "${RED}❌ Deployment failed. Please check the errors above.${NC}"
     exit 1
 fi
 
 echo -e "${YELLOW}Testing the deployed function...${NC}"
-response=$(curl -s "https://zcvaxzakzkszoxienepi.supabase.co/functions/v1/navigapp-api-v2/health")
+response=$(curl -s "https://zcvaxzakzkszoxienepi.supabase.co/functions/v1/navigapp-prisma-api/health")
 echo "$response" | jq '.' 2>/dev/null || echo "$response"
 
 echo ""
 echo -e "${GREEN}🎉 Deployment complete!${NC}"
 echo -e "${BLUE}Next steps:${NC}"
-echo -e "1. Test auth endpoint: curl -X POST https://zcvaxzakzkszoxienepi.supabase.co/functions/v1/navigapp-api-v2/auth/telegram -d '{\"initData\":\"demo-init-data\"}' -H 'Content-Type: application/json'"
+echo -e "1. Test auth endpoint: curl -X POST https://zcvaxzakzkszoxienepi.supabase.co/functions/v1/navigapp-prisma-api/auth/telegram -d '{\"initData\":\"demo-init-data\"}' -H 'Content-Type: application/json'"
 echo -e "2. Update Vercel environment variables if needed"
 echo -e "3. Test Telegram Mini App authorization"
