@@ -229,7 +229,25 @@ export class DatabaseClient {
     title?: string;
     description?: string;
     isPublished?: boolean;
+    blocks?: Array<{
+      id?: string;
+      type: string;
+      title?: string;
+      layout?: string;
+      order?: number;
+      cards: Array<{
+        id?: string;
+        title: string;
+        description?: string;
+        iconName?: string;
+        iconUrl?: string;
+        url?: string;
+        type: string;
+        order: number;
+      }>;
+    }>;
   }) {
+    // Update basic page data
     const updateData: any = {};
 
     if (pageData.title !== undefined) updateData.title = pageData.title;
@@ -238,7 +256,7 @@ export class DatabaseClient {
 
     updateData.updated_at = new Date().toISOString();
 
-    const { data, error } = await this.supabase
+    const { data: page, error } = await this.supabase
       .from('pages')
       .update(updateData)
       .eq('id', id)
@@ -246,6 +264,216 @@ export class DatabaseClient {
       .single();
 
     if (error) throw error;
+
+    // If blocks data is provided, update blocks and cards
+    if (pageData.blocks && pageData.blocks.length > 0) {
+      console.log('🔥 Updating blocks and cards for page:', id);
+
+      for (const blockData of pageData.blocks) {
+        console.log('🔥 Processing block:', blockData);
+
+        // Map frontend block type to database type
+        const mapBlockType = (frontendType: string, layout?: string) => {
+          // If frontend sends 'cards' with layout, map to appropriate type
+          if (frontendType === 'cards') {
+            switch (layout) {
+              case 'grid': return 'grid';
+              case 'horizontal': return 'horizontal_scroll';
+              case 'feed': return 'feed';
+              default: return 'vertical_list';
+            }
+          }
+          // Otherwise use the type as is (for direct API calls)
+          return frontendType;
+        };
+
+        const dbBlockType = mapBlockType(blockData.type, blockData.layout);
+        console.log('🔥 Mapped block type:', blockData.type, '->', dbBlockType);
+
+        // Find or create the block
+        let block;
+        if (blockData.id && blockData.id !== '1') {
+          // Try to find existing block by ID
+          const { data: existingBlock, error: findError } = await this.supabase
+            .from('page_blocks')
+            .select('*')
+            .eq('id', blockData.id)
+            .eq('page_id', id)
+            .maybeSingle();
+
+          if (findError) {
+            console.error('🔥 Error finding existing block:', findError);
+          } else if (existingBlock) {
+            // Update existing block
+            const { data: updatedBlock, error: updateError } = await this.supabase
+              .from('page_blocks')
+              .update({
+                type: dbBlockType,
+                title: blockData.title,
+                position: blockData.order || 0,
+                settings: { layout: blockData.layout || 'vertical' },
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', blockData.id)
+              .select()
+              .single();
+
+            if (updateError) {
+              console.error('🔥 Error updating block:', updateError);
+            } else {
+              console.log('🔥 Block updated successfully:', updatedBlock);
+              block = updatedBlock;
+            }
+          }
+        }
+
+        if (!block) {
+          // Create new block or find the default block
+          const { data: existingBlocks, error: listError } = await this.supabase
+            .from('page_blocks')
+            .select('*')
+            .eq('page_id', id)
+            .order('created_at', { ascending: true });
+
+          if (listError) {
+            console.error('🔥 Error getting existing blocks:', listError);
+          }
+
+          if (existingBlocks && existingBlocks.length > 0) {
+            // Update the first existing block
+            const { data: updatedBlock, error: updateError } = await this.supabase
+              .from('page_blocks')
+              .update({
+                type: dbBlockType,
+                title: blockData.title,
+                position: blockData.order || 0,
+                settings: { layout: blockData.layout || 'vertical' },
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', existingBlocks[0].id)
+              .select()
+              .single();
+
+            if (updateError) {
+              console.error('🔥 Error updating existing block:', updateError);
+            } else {
+              console.log('🔥 Existing block updated successfully:', updatedBlock);
+              block = updatedBlock;
+            }
+          } else {
+            // Create new block
+            const { data: newBlock, error: createError } = await this.supabase
+              .from('page_blocks')
+              .insert({
+                page_id: id,
+                type: dbBlockType,
+                title: blockData.title,
+                position: blockData.order || 0,
+                settings: { layout: blockData.layout || 'vertical' }
+              })
+              .select()
+              .single();
+
+            if (createError) {
+              console.error('🔥 Error creating new block:', createError);
+            } else {
+              console.log('🔥 New block created successfully:', newBlock);
+              block = newBlock;
+            }
+          }
+        }
+
+        if (block && blockData.cards) {
+          console.log('🔥 Processing cards for block:', block.id);
+
+          // Delete existing cards for this block
+          const { error: deleteError } = await this.supabase
+            .from('block_cards')
+            .delete()
+            .eq('block_id', block.id);
+
+          if (deleteError) {
+            console.error('🔥 Error deleting existing cards:', deleteError);
+          } else {
+            console.log('🔥 Existing cards deleted successfully');
+          }
+
+          // Insert new cards
+          for (const cardData of blockData.cards) {
+            console.log('🔥 Inserting card:', cardData);
+
+            const { data: newCard, error: cardError } = await this.supabase
+              .from('block_cards')
+              .insert({
+                block_id: block.id,
+                title: cardData.title,
+                description: cardData.description,
+                icon_url: cardData.iconUrl,
+                link_url: cardData.url,
+                link_type: cardData.type || 'external',
+                position: cardData.order || 0
+              })
+              .select()
+              .single();
+
+            if (cardError) {
+              console.error('🔥 Error inserting card:', cardError);
+            } else {
+              console.log('🔥 Card inserted successfully:', newCard);
+            }
+          }
+        } else {
+          console.log('🔥 No block or no cards to process');
+        }
+      }
+
+      console.log('🔥 Finished processing blocks and cards');
+    } else {
+      console.log('🔥 No blocks data provided to update');
+    }
+
+    // Return the updated page with blocks and cards
+    return await this.getPageById(id);
+  }
+
+  async getPageById(id: string) {
+    console.log('🔥 getPageById called with id:', id);
+
+    const { data, error } = await this.supabase
+      .from('pages')
+      .select(`
+        *,
+        blocks:page_blocks(
+          *,
+          cards:block_cards(*)
+        )
+      `)
+      .eq('id', id)
+      .single();
+
+    console.log('🔥 getPageById query result:', { data, error });
+
+    if (error) throw error;
+
+    // Double-check: query blocks separately to see if they exist
+    const { data: blocksOnly, error: blocksError } = await this.supabase
+      .from('page_blocks')
+      .select('*')
+      .eq('page_id', id);
+
+    console.log('🔥 Blocks query result:', { blocksOnly, blocksError });
+
+    if (blocksOnly && blocksOnly.length > 0) {
+      // Also check cards for the first block
+      const { data: cardsOnly, error: cardsError } = await this.supabase
+        .from('block_cards')
+        .select('*')
+        .eq('block_id', blocksOnly[0].id);
+
+      console.log('🔥 Cards query result:', { cardsOnly, cardsError });
+    }
+
+    console.log('🔥 getPageById returning data:', JSON.stringify(data, null, 2));
     return data;
   }
 

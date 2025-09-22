@@ -131,6 +131,112 @@ serve(async (req) => {
       }
     }
 
+    // Debug endpoint for testing card creation
+    if (path.endsWith('/debug-cards')) {
+      const auth = await validateAuthToken(req.headers.get('authorization'));
+      if (!auth) {
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      if (req.method === 'POST') {
+        const body = await req.json();
+        const logs: string[] = [];
+
+        try {
+          logs.push('🔥 Starting debug card creation test');
+          logs.push('🔥 Received body: ' + JSON.stringify(body));
+
+          // First, let's see what block types already exist
+          const { data: existingBlocks, error: queryError } = await db.supabase
+            .from('page_blocks')
+            .select('type')
+            .limit(10);
+
+          if (queryError) {
+            logs.push('🔥 Error querying existing blocks: ' + JSON.stringify(queryError));
+          } else {
+            logs.push('🔥 Existing block types: ' + JSON.stringify(existingBlocks));
+          }
+
+          // Test creating a block - try different types
+          const testTypes = ['navigation', 'list', 'grid', 'feed', 'content', 'blocks', 'card_list'];
+          const blockType = body.blockType || testTypes[0];
+
+          const blockData = {
+            page_id: body.pageId,
+            type: blockType,
+            title: 'Debug Block',
+            position: 0,
+            settings: { layout: 'vertical' }
+          };
+
+          logs.push('🔥 Testing block type: ' + blockType);
+
+          logs.push('🔥 Creating block with data: ' + JSON.stringify(blockData));
+
+          const { data: newBlock, error: blockError } = await db.supabase
+            .from('page_blocks')
+            .insert(blockData)
+            .select()
+            .single();
+
+          if (blockError) {
+            logs.push('🔥 Block creation error: ' + JSON.stringify(blockError));
+          } else {
+            logs.push('🔥 Block created successfully: ' + JSON.stringify(newBlock));
+
+            // Test creating a card
+            if (newBlock) {
+              const cardData = {
+                block_id: newBlock.id,
+                title: 'Debug Card',
+                description: 'Debug test card',
+                link_url: 'https://example.com',
+                link_type: 'external',
+                position: 0
+              };
+
+              logs.push('🔥 Creating card with data: ' + JSON.stringify(cardData));
+
+              const { data: newCard, error: cardError } = await db.supabase
+                .from('block_cards')
+                .insert(cardData)
+                .select()
+                .single();
+
+              if (cardError) {
+                logs.push('🔥 Card creation error: ' + JSON.stringify(cardError));
+              } else {
+                logs.push('🔥 Card created successfully: ' + JSON.stringify(newCard));
+              }
+            }
+          }
+
+          return new Response(
+            JSON.stringify({
+              success: true,
+              logs: logs,
+              data: { blockData, newBlock }
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        } catch (error) {
+          logs.push('🔥 Exception: ' + error.message);
+          return new Response(
+            JSON.stringify({
+              success: false,
+              logs: logs,
+              error: error.message
+            }),
+            { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+    }
+
     // Pages endpoint with database operations
     if (path.endsWith('/pages')) {
       const auth = await validateAuthToken(req.headers.get('authorization'));
