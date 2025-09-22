@@ -12,7 +12,7 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   onRightIconClick?: () => void;
 }
 
-export const Input: React.FC<InputProps> = ({
+export const Input = React.forwardRef<HTMLInputElement, InputProps>(({
   label,
   error,
   helpText,
@@ -22,8 +22,8 @@ export const Input: React.FC<InputProps> = ({
   className,
   id,
   ...props
-}) => {
-  const inputId = id || `input-${Math.random().toString(36).substr(2, 9)}`;
+}, ref) => {
+  const inputId = id || `input-${Math.random().toString(36).slice(2, 11)}`;
 
   return (
     <div className="space-y-2">
@@ -44,6 +44,7 @@ export const Input: React.FC<InputProps> = ({
         )}
 
         <input
+          ref={ref}
           id={inputId}
           className={cn(
             'w-full px-3 py-2 text-base',
@@ -100,4 +101,6 @@ export const Input: React.FC<InputProps> = ({
       )}
     </div>
   );
-};
+});
+
+Input.displayName = 'Input';

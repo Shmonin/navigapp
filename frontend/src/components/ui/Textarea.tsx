@@ -9,7 +9,7 @@ interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement
   resize?: 'none' | 'vertical' | 'horizontal' | 'both';
 }
 
-export const Textarea: React.FC<TextareaProps> = ({
+export const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(({
   label,
   error,
   helpText,
@@ -17,8 +17,8 @@ export const Textarea: React.FC<TextareaProps> = ({
   className,
   id,
   ...props
-}) => {
-  const textareaId = id || `textarea-${Math.random().toString(36).substr(2, 9)}`;
+}, ref) => {
+  const textareaId = id || `textarea-${Math.random().toString(36).slice(2, 11)}`;
 
   return (
     <div className="space-y-2">
@@ -32,6 +32,7 @@ export const Textarea: React.FC<TextareaProps> = ({
       )}
 
       <textarea
+        ref={ref}
         id={textareaId}
         className={cn(
           'w-full px-3 py-2 text-base',
@@ -75,4 +76,6 @@ export const Textarea: React.FC<TextareaProps> = ({
       )}
     </div>
   );
-};
+});
+
+Textarea.displayName = 'Textarea';

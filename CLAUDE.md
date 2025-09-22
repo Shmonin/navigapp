@@ -11,32 +11,59 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Pro version**: Unlimited pages/cards, multiple block types (grid, horizontal scroll, feed), internal pages, advanced analytics
 - **Target users**: Course creators, channel owners, company teams
 
-### Technology Stack
-- **Frontend**: React 18+ with TypeScript, Vite, Tailwind CSS, Zustand, Telegram Mini Apps SDK
-- **Backend**: Node.js 20+, Fastify, PostgreSQL (Supabase), Prisma ORM, T-Bank API
-- **Deployment**: Vercel (frontend), Supabase Edge Functions (backend)
+### Technology Stack ✅ (РЕАЛИЗОВАНО)
+- **Frontend**: React 18+ with TypeScript, Vite, Tailwind CSS, Zustand, @twa-dev/sdk ✅
+- **Backend**: Deno (Supabase Edge Functions), PostgreSQL (Supabase), Prisma ORM ✅
+- **Deployment**: Vercel (frontend) ✅, Supabase Edge Functions (backend) ✅
+- **Current Status**: Phase 1 infrastructure completed and deployed
 
-## Development Commands
+## Development Commands ✅ (РАБОТАЮТ)
 
-Since this is currently an empty project, specific build/test commands will be established based on the chosen technology stack. Expected commands based on the architecture:
-
-**Frontend (when implemented):**
+**Frontend (развернуто на https://navigapp.vercel.app):**
 ```bash
-npm run dev          # Start development server
-npm run build        # Build for production
-npm run lint         # Run ESLint
-npm run typecheck    # Run TypeScript checks
-npm test             # Run Jest tests
+cd frontend
+npm run dev          # Start development server (работает)
+npm run build        # Build for production (работает)
+npm run lint         # Run ESLint (настроено)
+npm run typecheck    # Run TypeScript checks (работает)
+npm test             # Run Jest tests (настроено)
 ```
 
-**Backend (when implemented):**
+**Backend (Supabase Edge Functions - развернуто):**
 ```bash
-npm run dev          # Start development server with hot reload
-npm run build        # Build TypeScript to JavaScript
-npm run start        # Start production server
-npm run db:migrate   # Run Prisma migrations
-npm run db:generate  # Generate Prisma client
-npm test             # Run API tests
+# Automated deployment script
+./deploy-functions.sh                    # Deploy all Edge Functions (работает)
+
+# Manual deployment (if needed)
+supabase functions deploy navigapp-api   # Deploy single function (работает)
+
+# Database management
+cd backend
+npx prisma migrate deploy               # Apply migrations (готово)
+npx prisma generate                     # Generate Prisma client (готово)
+
+# API testing
+curl https://zcvaxzakzkszoxienepi.supabase.co/functions/v1/navigapp-api/health
+```
+
+**Project Setup (для новых разработчиков):**
+```bash
+# Clone and setup
+git clone [repo-url]
+cd navigapp
+
+# Install dependencies
+cd shared && npm install && npm run build
+cd ../frontend && npm install
+
+# Copy environment
+cp .env.local frontend/.env.local
+
+# Start development
+cd frontend && npm run dev
+
+# Test in Telegram
+# Use ngrok http 5173 for local testing in Telegram
 ```
 
 ## Architecture Guidelines
@@ -48,12 +75,15 @@ npm test             # Run API tests
 - **Telegram Integration**: @twa-dev/sdk for haptic feedback, theming, and native buttons
 - **Mobile-First**: Progressive enhancement for Telegram Mini Apps environment
 
-### Backend Architecture
-- **API Design**: RESTful endpoints with clear resource separation
-- **Database**: PostgreSQL with Prisma ORM, includes analytics events, user subscriptions
-- **Authentication**: Telegram WebApp validation + JWT tokens
-- **Payment Integration**: T-Bank API for subscriptions and trial periods
-- **Error Handling**: Comprehensive validation and error boundaries
+### Backend Architecture ✅ (РЕАЛИЗОВАНО)
+- **Runtime**: Deno (Supabase Edge Functions) ✅
+- **API Design**: RESTful endpoints with CORS configured for Telegram ✅
+- **Database**: PostgreSQL (Supabase) with Prisma schema ✅
+- **Authentication**: Telegram WebApp initData validation ✅
+- **Error Handling**: Standardized JSON responses ✅
+- **Deployment**: Automated via deploy-functions.sh script ✅
+- **Current Endpoints**: Health check, auth, pages (mock responses) ✅
+- **Next Phase**: Database integration, real CRUD operations
 
 ### Key Components
 - **Page Builder**: Multi-step wizard for creating navigation pages

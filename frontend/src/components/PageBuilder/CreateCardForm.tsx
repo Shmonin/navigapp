@@ -19,10 +19,18 @@ const createCardSchema = z.object({
     .optional(),
   url: z
     .string()
-    .url('Введите корректную ссылку')
-    .optional()
-    .or(z.literal('')),
-  type: z.enum(['link', 'internal']),
+    .min(0)
+    .refine((val) => {
+      if (!val || val === '') return true;
+      try {
+        new URL(val);
+        return true;
+      } catch {
+        return false;
+      }
+    }, 'Введите корректную ссылку')
+    .optional(),
+  type: z.enum(['external', 'internal']),
   iconName: z.string().optional(),
   iconUrl: z.string().optional()
 });
@@ -58,9 +66,11 @@ export const CreateCardForm: React.FC<CreateCardFormProps> = ({
     resolver: zodResolver(createCardSchema),
     mode: 'onChange',
     defaultValues: {
-      type: 'link'
+      type: 'external'
     }
   });
+
+  console.log('🔥 Form state:', { errors, isValid });
 
   const selectedIconName = watch('iconName');
   const cardType = watch('type');
@@ -75,8 +85,11 @@ export const CreateCardForm: React.FC<CreateCardFormProps> = ({
   };
 
   const handleFormSubmit = async (data: CreateCardData & { iconName?: string }) => {
+    console.log('🔥 CreateCardForm handleFormSubmit called with data:', data);
+
     // Проверяем лимит карточек
     if (maxCards && currentCardCount >= maxCards) {
+      console.log('🔥 Card limit reached, returning early');
       return;
     }
 
@@ -89,9 +102,20 @@ export const CreateCardForm: React.FC<CreateCardFormProps> = ({
         iconName: data.iconName as IconName | undefined
       };
 
+      console.log('🔥 Prepared submit data:', submitData);
+      console.log('🔥 Calling onSubmit with data...');
+
       await onSubmit(submitData);
+
+      console.log('🔥 onSubmit completed successfully');
+      console.log('🔥 Calling handleClose...');
+
       handleClose();
+
+      console.log('🔥 handleClose completed');
     } catch (error) {
+      console.error('🔥 Error in CreateCardForm handleFormSubmit:', error);
+      console.error('🔥 Error details:', error instanceof Error ? error.message : String(error));
       // Ошибка будет обработана в родительском компоненте
     }
   };
@@ -127,7 +151,14 @@ export const CreateCardForm: React.FC<CreateCardFormProps> = ({
             </Button>
           </div>
         ) : (
-          <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-4">
+          <form
+            onSubmit={(e) => {
+              console.log('🔥 Form onSubmit event triggered');
+              console.log('🔥 Form data:', new FormData(e.currentTarget));
+              handleSubmit(handleFormSubmit)(e);
+            }}
+            className="space-y-4"
+          >
             {/* Иконка */}
             <div>
               <label className="block text-sm font-medium text-[var(--tg-theme-text-color)] mb-2">
@@ -193,11 +224,11 @@ export const CreateCardForm: React.FC<CreateCardFormProps> = ({
                         type="button"
                         className={cn(
                           'p-3 border rounded-lg text-left transition-all',
-                          field.value === 'link'
+                          field.value === 'external'
                             ? 'border-[var(--tg-theme-button-color)] bg-[var(--tg-theme-button-color)]/10'
                             : 'border-[var(--tg-theme-section-separator-color)]'
                         )}
-                        onClick={() => field.onChange('link')}
+                        onClick={() => field.onChange('external')}
                       >
                         <div className="flex items-center gap-2 mb-1">
                           <Icon name="Link21" size="sm" />
@@ -232,7 +263,7 @@ export const CreateCardForm: React.FC<CreateCardFormProps> = ({
             </div>
 
             {/* URL для внешних ссылок */}
-            {cardType === 'link' && (
+            {cardType === 'external' && (
               <Input
                 label="Ссылка"
                 placeholder="https://example.com"

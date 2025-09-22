@@ -9,7 +9,7 @@ export interface Card {
   iconName?: IconName;
   iconUrl?: string;
   url?: string;
-  type: 'link' | 'internal';
+  type: 'external' | 'internal';
   order: number;
 }
 
@@ -45,5 +45,5 @@ export interface CreateCardData {
   iconName?: IconName;
   iconUrl?: string;
   url?: string;
-  type: 'link' | 'internal';
+  type: 'external' | 'internal';
 }

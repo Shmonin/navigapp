@@ -12,7 +12,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   fullWidth?: boolean;
   icon?: IconName;
   iconPosition?: 'left' | 'right';
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }
 
 export const Button: React.FC<ButtonProps> = ({
@@ -84,7 +84,7 @@ export const Button: React.FC<ButtonProps> = ({
       {...props}
     >
       {iconPosition === 'left' && renderIcon()}
-      <span className={cn(isLoading && 'opacity-0')}>{children}</span>
+      {children && <span className={cn(isLoading && 'opacity-0')}>{children}</span>}
       {iconPosition === 'right' && renderIcon()}
     </button>
   );

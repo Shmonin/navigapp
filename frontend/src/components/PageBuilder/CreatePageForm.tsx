@@ -32,12 +32,20 @@ export const CreatePageForm: React.FC<CreatePageFormProps> = ({
   const {
     register,
     handleSubmit,
-    formState: { errors, isValid },
-    reset
+    formState: { errors },
+    reset,
+    watch
   } = useForm<CreatePageData>({
     resolver: zodResolver(createPageSchema),
-    mode: 'onChange'
+    mode: 'onBlur',
+    defaultValues: {
+      title: '',
+      description: ''
+    }
   });
+
+  // Отслеживаем значение title для более точной проверки
+  const titleValue = watch('title');
 
   const handleClose = () => {
     reset();
@@ -92,7 +100,7 @@ export const CreatePageForm: React.FC<CreatePageFormProps> = ({
             variant="primary"
             fullWidth
             isLoading={isLoading}
-            disabled={!isValid || isLoading}
+            disabled={!titleValue?.trim() || isLoading}
           >
             {isLoading ? 'Создание...' : 'Создать страницу'}
           </Button>

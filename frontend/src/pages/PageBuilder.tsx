@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTelegramWebApp } from '@/hooks/useTelegramWebApp';
 import { useSubscriptionLimits } from '@/hooks/useSubscriptionLimits';
+import { usePages } from '@/hooks/usePages';
+import { useToast } from '@/contexts/ToastContext';
+import { useAuthContext } from '@/contexts/AuthContext';
 import { Button, Icon } from '@/components/ui';
 import { CreatePageForm } from '@/components/PageBuilder/CreatePageForm';
 import { CreateCardForm } from '@/components/PageBuilder/CreateCardForm';
@@ -9,15 +12,10 @@ import { CardPreview } from '@/components/PageBuilder/CardPreview';
 import { Page, Card, CreatePageData, CreateCardData, LayoutType } from '@/types/page';
 import { cn } from '@/utils/cn';
 
-// Моковые данные для демонстрации
-const mockUser = {
-  id: '1',
-  plan: 'free' as const,
-  pagesCount: 0
-};
-
 export const PageBuilder: React.FC = () => {
   const { mainButton, hapticFeedback } = useTelegramWebApp();
+  const { addToast } = useToast();
+  const { user, isLoading: authLoading, isAuthenticated } = useAuthContext();
 
   // Состояние
   const [showCreatePageForm, setShowCreatePageForm] = useState(false);
@@ -25,6 +23,16 @@ export const PageBuilder: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<Page | null>(null);
   const [selectedLayout, setSelectedLayout] = useState<LayoutType>('vertical');
   const [isLoading, setIsLoading] = useState(false);
+
+  // API интеграция
+  const {
+    pages,
+    createPage,
+    updatePage,
+    publishPage,
+    isOnline,
+    hasUnsyncedChanges
+  } = usePages(user?.id || '');
 
   // Ограничения подписки
   const {
@@ -35,56 +43,73 @@ export const PageBuilder: React.FC = () => {
     getUpgradeReason,
     isFree
   } = useSubscriptionLimits({
-    plan: mockUser.plan,
-    currentPageCount: mockUser.pagesCount,
+    plan: user?.subscriptionType || 'free',
+    currentPageCount: pages.length,
     currentCardCount: currentPage?.blocks[0]?.cards.length || 0
   });
 
+  // Установка текущей страницы при загрузке
+  useEffect(() => {
+    if (pages.length > 0 && !currentPage) {
+      setCurrentPage(pages[0]);
+      setSelectedLayout(pages[0].blocks[0]?.layout || 'vertical');
+    }
+  }, [pages, currentPage]);
+
   // Обработчики
   const handleCreatePage = async (data: CreatePageData) => {
+    console.log('🔥 PageBuilder: Starting page creation');
     setIsLoading(true);
-    try {
-      // Имитация API запроса
-      await new Promise(resolve => setTimeout(resolve, 1000));
 
-      const newPage: Page = {
-        id: Date.now().toString(),
-        title: data.title,
-        description: data.description,
-        slug: data.title.toLowerCase().replace(/\s+/g, '-'),
-        isPublished: false,
-        blocks: [{
-          id: '1',
-          type: 'cards',
-          title: 'Навигация',
-          layout: selectedLayout,
-          cards: [],
-          order: 0
-        }],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
+    try {
+      const newPage = await createPage(data);
+      console.log('🔥 PageBuilder: Page created successfully:', newPage);
 
       setCurrentPage(newPage);
+      setShowCreatePageForm(false);
+
+      addToast({
+        type: 'success',
+        title: 'Страница создана',
+        message: `Страница "${data.title}" успешно создана`,
+        duration: 3000
+      });
 
       if (hapticFeedback) {
         hapticFeedback('impact', 'medium');
       }
     } catch (error) {
-      console.error('Error creating page:', error);
+      console.error('🔥 PageBuilder: Error creating page:', error);
+
+      addToast({
+        type: 'error',
+        title: 'Ошибка создания страницы',
+        message: 'Не удалось создать страницу. Попробуйте еще раз.',
+        duration: 5000
+      });
+
+      if (hapticFeedback) {
+        hapticFeedback('notification', 'error');
+      }
     } finally {
       setIsLoading(false);
+      console.log('🔥 PageBuilder: Page creation process completed');
     }
   };
 
   const handleCreateCard = async (data: CreateCardData) => {
-    if (!currentPage) return;
+    console.log('🔥 handleCreateCard called with data:', data);
 
+    if (!currentPage) {
+      console.error('🔥 No current page found');
+      return;
+    }
+
+    console.log('🔥 Current page:', currentPage);
+    console.log('🔥 Setting loading to true');
     setIsLoading(true);
-    try {
-      // Имитация API запроса
-      await new Promise(resolve => setTimeout(resolve, 500));
 
+    try {
       const newCard: Card = {
         id: Date.now().toString(),
         title: data.title,
@@ -96,6 +121,8 @@ export const PageBuilder: React.FC = () => {
         order: currentPage.blocks[0].cards.length
       };
 
+      console.log('🔥 New card created:', newCard);
+
       const updatedPage = {
         ...currentPage,
         blocks: [{
@@ -105,19 +132,34 @@ export const PageBuilder: React.FC = () => {
         updatedAt: new Date().toISOString()
       };
 
+      console.log('🔥 Updated page prepared:', updatedPage);
+      console.log('🔥 Calling updatePage API...');
+
+      await updatePage(currentPage.id, updatedPage);
+
+      console.log('🔥 updatePage API call successful');
       setCurrentPage(updatedPage);
+      console.log('🔥 Local page state updated');
+
+      setShowCreateCardForm(false);
+      console.log('🔥 Form closed');
 
       if (hapticFeedback) {
         hapticFeedback('impact', 'light');
+        console.log('🔥 Haptic feedback triggered');
       }
+
+      console.log('🔥 Card creation completed successfully');
     } catch (error) {
-      console.error('Error creating card:', error);
+      console.error('🔥 Error creating card:', error);
+      console.error('🔥 Error details:', error instanceof Error ? error.message : String(error));
     } finally {
+      console.log('🔥 Setting loading to false');
       setIsLoading(false);
     }
   };
 
-  const handleLayoutChange = (layout: LayoutType) => {
+  const handleLayoutChange = async (layout: LayoutType) => {
     if (!currentPage) return;
 
     if (!isLayoutAllowed(layout)) {
@@ -139,14 +181,19 @@ export const PageBuilder: React.FC = () => {
       updatedAt: new Date().toISOString()
     };
 
-    setCurrentPage(updatedPage);
+    try {
+      await updatePage(currentPage.id, updatedPage);
+      setCurrentPage(updatedPage);
 
-    if (hapticFeedback) {
-      hapticFeedback('impact', 'light');
+      if (hapticFeedback) {
+        hapticFeedback('impact', 'light');
+      }
+    } catch (error) {
+      console.error('Error updating layout:', error);
     }
   };
 
-  const handleDeleteCard = (cardId: string) => {
+  const handleDeleteCard = async (cardId: string) => {
     if (!currentPage) return;
 
     const updatedCards = currentPage.blocks[0].cards.filter(card => card.id !== cardId);
@@ -159,10 +206,15 @@ export const PageBuilder: React.FC = () => {
       updatedAt: new Date().toISOString()
     };
 
-    setCurrentPage(updatedPage);
+    try {
+      await updatePage(currentPage.id, updatedPage);
+      setCurrentPage(updatedPage);
 
-    if (hapticFeedback) {
-      hapticFeedback('impact', 'light');
+      if (hapticFeedback) {
+        hapticFeedback('impact', 'light');
+      }
+    } catch (error) {
+      console.error('Error deleting card:', error);
     }
   };
 
@@ -171,15 +223,7 @@ export const PageBuilder: React.FC = () => {
 
     setIsLoading(true);
     try {
-      // Имитация API запроса
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      const publishedPage = {
-        ...currentPage,
-        isPublished: true,
-        updatedAt: new Date().toISOString()
-      };
-
+      const publishedPage = await publishPage(currentPage.id);
       setCurrentPage(publishedPage);
 
       if (hapticFeedback) {
@@ -219,6 +263,39 @@ export const PageBuilder: React.FC = () => {
 
   const currentCardCount = currentPage?.blocks[0]?.cards.length || 0;
 
+  // Show loading while authenticating
+  if (authLoading) {
+    return (
+      <div className="flex flex-col min-h-screen bg-[var(--tg-theme-secondary-bg-color)]">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-8 h-8 border-2 border-[var(--tg-theme-button-color)] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-[var(--tg-theme-text-color)]">Авторизация...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error if not authenticated
+  if (!isAuthenticated || !user) {
+    return (
+      <div className="flex flex-col min-h-screen bg-[var(--tg-theme-secondary-bg-color)]">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center max-w-sm mx-auto p-4">
+            <Icon name="Warning2" size="xl" color="var(--tg-theme-destructive-text-color)" className="mb-4" />
+            <h2 className="text-lg font-semibold text-[var(--tg-theme-text-color)] mb-2">
+              Ошибка авторизации
+            </h2>
+            <p className="text-[var(--tg-theme-hint-color)] mb-4">
+              Не удалось авторизоваться через Telegram
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col min-h-screen bg-[var(--tg-theme-secondary-bg-color)]">
       <div className="flex-1 p-4 space-y-6">
@@ -233,6 +310,22 @@ export const PageBuilder: React.FC = () => {
               : 'Создайте свою первую страницу навигации'
             }
           </p>
+
+          {/* Статус подключения */}
+          <div className="flex items-center justify-center gap-2 mt-2">
+            <div className={cn(
+              "w-2 h-2 rounded-full",
+              isOnline ? "bg-green-500" : "bg-red-500"
+            )} />
+            <span className="text-xs text-[var(--tg-theme-hint-color)]">
+              {isOnline ? 'Онлайн' : 'Оффлайн'}
+            </span>
+            {hasUnsyncedChanges && (
+              <span className="text-xs text-yellow-600">
+                • Есть несохраненные изменения
+              </span>
+            )}
+          </div>
         </div>
 
         {!currentPage ? (
@@ -293,7 +386,7 @@ export const PageBuilder: React.FC = () => {
             <LayoutSelector
               selectedLayout={selectedLayout}
               onLayoutChange={handleLayoutChange}
-              userPlan={mockUser.plan}
+              userPlan={user?.subscriptionType || 'free'}
             />
 
             {/* Карточки */}
