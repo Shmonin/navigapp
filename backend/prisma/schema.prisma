@@ -21,12 +21,15 @@ model User {
   trialUsed            Boolean   @default(false) @map("trial_used")
   totalPagesCreated    Int       @default(0) @map("total_pages_created")
   lastActiveAt         DateTime  @default(now()) @map("last_active_at")
+  lastBotAuthAt        DateTime? @map("last_bot_auth_at")
+  authPreference       String    @default("hybrid") @map("auth_preference") // 'bot', 'webapp', 'hybrid'
   createdAt            DateTime  @default(now()) @map("created_at")
   updatedAt            DateTime  @updatedAt @map("updated_at")
 
   // Relations
   pages         Page[]
   subscriptions Subscription[]
+  authSessions  AuthSession[]
 
   @@map("users")
 }
@@ -38,6 +41,11 @@ model Page {
   description    String?
   slug           String    @unique
   isPublished    Boolean   @default(false) @map("is_published")
+  isPublic       Boolean   @default(true) @map("is_public")
+  publicSlug     String?   @unique @map("public_slug") // SEO-friendly slug
+  metaTitle      String?   @map("meta_title")
+  metaDescription String?  @map("meta_description")
+  ogImageUrl     String?   @map("og_image_url")
   parentPageId   String?   @map("parent_page_id")
   viewCount      Int       @default(0) @map("view_count")
   clickCount     Int       @default(0) @map("click_count")
@@ -51,6 +59,8 @@ model Page {
   blocks         PageBlock[]
   analyticsEvents AnalyticsEvent[]
 
+  @@index([publicSlug])
+  @@index([isPublic])
   @@map("pages")
 }
 
@@ -157,4 +167,50 @@ model Payment {
   subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 
   @@map("payments")
+}
+
+model AuthSession {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  accessToken  String   @unique @map("access_token")
+  refreshToken String   @unique @map("refresh_token")
+  botAuthHash  String?  @map("bot_auth_hash") // Хеш для bot authentication
+  sessionType  String   @map("session_type") // 'bot', 'webapp', 'hybrid'
+  expiresAt    DateTime @map("expires_at")
+  refreshExpiresAt DateTime @map("refresh_expires_at")
+  lastUsedAt   DateTime @default(now()) @map("last_used_at")
+  ipAddress    String?  @map("ip_address")
+  userAgent    String?  @map("user_agent")
+  deviceFingerprint String? @map("device_fingerprint")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([accessToken])
+  @@index([refreshToken])
+  @@index([userId, isActive])
+  @@index([botAuthHash])
+  @@map("auth_sessions")
+}
+
+model BotAuthRequest {
+  id            String   @id @default(uuid())
+  telegramId    BigInt   @map("telegram_id")
+  authHash      String   @unique @map("auth_hash")
+  deepLinkToken String?  @map("deep_link_token")
+  userData      Json?    @map("user_data") // Telegram user data
+  isCompleted   Boolean  @default(false) @map("is_completed")
+  completedAt   DateTime? @map("completed_at")
+  ipAddress     String?  @map("ip_address")
+  userAgent     String?  @map("user_agent")
+  expiresAt     DateTime @map("expires_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([authHash])
+  @@index([telegramId])
+  @@index([isCompleted])
+  @@map("bot_auth_requests")
 }
