@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Page, CreatePageData } from '@/types/page';
-import { pagesApi } from '@/services/api';
+import { Page, CreatePageData, CreateCardData, Card } from '@/types/page';
+import { pagesApi, cardsApi } from '@/services/api';
 import { offlineStorage } from '@/services/offline';
 import { generateSimpleId } from '@/utils/uuid';
 
@@ -200,6 +200,83 @@ export const usePages = (userId: string) => {
     }
   };
 
+  const createCard = async (pageId: string, blockId: string, cardData: CreateCardData): Promise<Card> => {
+    console.log('🔥 usePages createCard called with:', { pageId, blockId, cardData });
+
+    try {
+      if (offlineStorage.getIsOnline()) {
+        // Create card via API
+        console.log('🔥 Creating card via API...');
+        const newCard = await cardsApi.createCard(pageId, blockId, cardData);
+        console.log('🔥 Card created via API:', newCard);
+
+        // Update local page state
+        setPages(prev => prev.map(page => {
+          if (page.id === pageId) {
+            return {
+              ...page,
+              blocks: page.blocks.map(block => {
+                if (block.id === blockId) {
+                  return {
+                    ...block,
+                    cards: [...block.cards, newCard]
+                  };
+                }
+                return block;
+              }),
+              updatedAt: new Date().toISOString()
+            };
+          }
+          return page;
+        }));
+
+        console.log('🔥 Local page state updated with new card');
+        return newCard;
+      } else {
+        // Offline mode - create card locally
+        console.log('🔥 Offline mode - creating card locally');
+        const newCard: Card = {
+          id: Date.now().toString(),
+          title: cardData.title,
+          description: cardData.description,
+          iconName: cardData.iconName,
+          iconUrl: cardData.iconUrl,
+          url: cardData.url,
+          type: cardData.type,
+          order: 0 // Will be set by backend or calculated locally
+        };
+
+        // Update local state
+        setPages(prev => prev.map(page => {
+          if (page.id === pageId) {
+            const updatedPage = {
+              ...page,
+              blocks: page.blocks.map(block => {
+                if (block.id === blockId) {
+                  return {
+                    ...block,
+                    cards: [...block.cards, { ...newCard, order: block.cards.length }]
+                  };
+                }
+                return block;
+              }),
+              updatedAt: new Date().toISOString()
+            };
+            offlineStorage.savePage(updatedPage);
+            return updatedPage;
+          }
+          return page;
+        }));
+
+        console.log('🔥 Card created locally:', newCard);
+        return newCard;
+      }
+    } catch (error) {
+      console.error('🔥 Error creating card:', error);
+      throw error;
+    }
+  };
+
   const deletePage = async (pageId: string): Promise<void> => {
     try {
       if (offlineStorage.getIsOnline()) {
@@ -245,6 +322,7 @@ export const usePages = (userId: string) => {
     error,
     createPage,
     updatePage,
+    createCard,
     deletePage,
     publishPage,
     getPageById,

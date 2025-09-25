@@ -346,6 +346,126 @@ serve(async (req) => {
       }
     }
 
+    // Cards endpoints - /pages/{pageId}/blocks/{blockId}/cards
+    const cardPathMatch = path.match(/^\/pages\/([^\/]+)\/blocks\/([^\/]+)\/cards\/?$/);
+    if (cardPathMatch) {
+      const [, pageId, blockId] = cardPathMatch;
+
+      const auth = await validateAuthToken(req.headers.get('authorization'));
+      if (!auth) {
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // POST method for creating cards
+      if (req.method === 'POST') {
+        const body = await req.json();
+
+        // Check user limits before creating card
+        const limits = await db.checkUserLimits(auth.userId);
+        if (!limits.canCreateCard) {
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: {
+                message: 'Card limit reached. Upgrade to Pro for unlimited cards.',
+                code: 'CARD_LIMIT_REACHED',
+                currentCount: limits.totalCards,
+                maxAllowed: limits.isPro ? 'unlimited' : 8
+              }
+            }),
+            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // Create card through database
+        const newCard = await db.createCard(pageId, blockId, {
+          title: body.title,
+          description: body.description,
+          iconName: body.iconName,
+          iconUrl: body.iconUrl,
+          url: body.url,
+          type: body.type,
+          order: body.order || 0
+        });
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            data: newCard
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // GET method for getting cards
+      if (req.method === 'GET') {
+        const cards = await db.getCardsByPageIdAndBlockId(pageId, blockId);
+        return new Response(
+          JSON.stringify({
+            success: true,
+            data: cards
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
+    // Individual card endpoints - /cards/{cardId}
+    const individualCardMatch = path.match(/^\/cards\/([^\/]+)\/?$/);
+    if (individualCardMatch) {
+      const [, cardId] = individualCardMatch;
+
+      const auth = await validateAuthToken(req.headers.get('authorization'));
+      if (!auth) {
+        return new Response(
+          JSON.stringify({ error: 'Unauthorized' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // PUT method for updating cards
+      if (req.method === 'PUT') {
+        const body = await req.json();
+        const updatedCard = await db.updateCard(cardId, body);
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            data: updatedCard
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // DELETE method for deleting cards
+      if (req.method === 'DELETE') {
+        await db.deleteCard(cardId);
+
+        return new Response(
+          JSON.stringify({
+            success: true,
+            message: 'Card deleted successfully'
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // GET method for getting individual card
+      if (req.method === 'GET') {
+        const card = await db.getCardById(cardId);
+        return new Response(
+          JSON.stringify({
+            success: true,
+            data: card
+          }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     // Telegram Authentication endpoint
     if (path.endsWith('/auth/telegram')) {
       if (req.method !== 'POST') {

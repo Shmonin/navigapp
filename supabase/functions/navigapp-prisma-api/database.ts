@@ -524,35 +524,124 @@ export class DatabaseClient {
   }
 
   // Card operations
-  async createCard(cardData: {
-    blockId: string;
+  async createCard(pageId: string, blockId: string, cardData: {
     title: string;
     description?: string;
+    iconName?: string;
     iconUrl?: string;
-    backgroundImageUrl?: string;
-    linkUrl?: string;
-    linkType?: string;
-    internalPageId?: string;
-    position: number;
+    url?: string;
+    type?: string;
+    order?: number;
   }) {
+    // Convert frontend data to backend format
     const { data, error } = await this.supabase
       .from('block_cards')
       .insert({
-        block_id: cardData.blockId,
+        block_id: blockId,
         title: cardData.title,
         description: cardData.description,
         icon_url: cardData.iconUrl,
-        background_image_url: cardData.backgroundImageUrl,
-        link_url: cardData.linkUrl,
-        link_type: cardData.linkType || 'external',
-        internal_page_id: cardData.internalPageId,
-        position: cardData.position
+        link_url: cardData.url,
+        link_type: cardData.type || 'external',
+        position: cardData.order || 0
       })
       .select()
       .single();
 
     if (error) throw error;
-    return data;
+
+    // Convert backend data to frontend format
+    return {
+      id: data.id,
+      title: data.title,
+      description: data.description,
+      iconName: cardData.iconName,
+      iconUrl: data.icon_url,
+      url: data.link_url,
+      type: data.link_type,
+      order: data.position
+    };
+  }
+
+  async updateCard(cardId: string, cardData: any) {
+    const { data, error } = await this.supabase
+      .from('block_cards')
+      .update({
+        title: cardData.title,
+        description: cardData.description,
+        icon_url: cardData.iconUrl,
+        link_url: cardData.url,
+        link_type: cardData.type,
+        position: cardData.order
+      })
+      .eq('id', cardId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Convert backend data to frontend format
+    return {
+      id: data.id,
+      title: data.title,
+      description: data.description,
+      iconName: cardData.iconName,
+      iconUrl: data.icon_url,
+      url: data.link_url,
+      type: data.link_type,
+      order: data.position
+    };
+  }
+
+  async deleteCard(cardId: string) {
+    const { error } = await this.supabase
+      .from('block_cards')
+      .delete()
+      .eq('id', cardId);
+
+    if (error) throw error;
+  }
+
+  async getCardById(cardId: string) {
+    const { data, error } = await this.supabase
+      .from('block_cards')
+      .select('*')
+      .eq('id', cardId)
+      .single();
+
+    if (error) throw error;
+
+    // Convert backend data to frontend format
+    return {
+      id: data.id,
+      title: data.title,
+      description: data.description,
+      iconUrl: data.icon_url,
+      url: data.link_url,
+      type: data.link_type,
+      order: data.position
+    };
+  }
+
+  async getCardsByPageIdAndBlockId(pageId: string, blockId: string) {
+    const { data, error } = await this.supabase
+      .from('block_cards')
+      .select('*')
+      .eq('block_id', blockId)
+      .order('position');
+
+    if (error) throw error;
+
+    // Convert backend data to frontend format
+    return data.map(card => ({
+      id: card.id,
+      title: card.title,
+      description: card.description,
+      iconUrl: card.icon_url,
+      url: card.link_url,
+      type: card.link_type,
+      order: card.position
+    }));
   }
 
   // Analytics operations

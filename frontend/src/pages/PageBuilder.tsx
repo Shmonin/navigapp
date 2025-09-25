@@ -9,7 +9,7 @@ import { CreatePageForm } from '@/components/PageBuilder/CreatePageForm';
 import { CreateCardForm } from '@/components/PageBuilder/CreateCardForm';
 import { LayoutSelector } from '@/components/PageBuilder/LayoutSelector';
 import { CardPreview } from '@/components/PageBuilder/CardPreview';
-import { Page, Card, CreatePageData, CreateCardData, LayoutType } from '@/types/page';
+import { Page, CreatePageData, CreateCardData, LayoutType } from '@/types/page';
 import { cn } from '@/utils/cn';
 
 export const PageBuilder: React.FC = () => {
@@ -29,6 +29,7 @@ export const PageBuilder: React.FC = () => {
     pages,
     createPage,
     updatePage,
+    createCard,
     publishPage,
     isOnline,
     hasUnsyncedChanges
@@ -110,36 +111,19 @@ export const PageBuilder: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const newCard: Card = {
-        id: Date.now().toString(),
-        title: data.title,
-        description: data.description,
-        iconName: data.iconName,
-        iconUrl: data.iconUrl,
-        url: data.url,
-        type: data.type,
-        order: currentPage.blocks[0].cards.length
-      };
+      // Use new createCard method instead of updatePage
+      const blockId = currentPage.blocks[0].id;
+      console.log('🔥 Calling createCard API with blockId:', blockId);
 
-      console.log('🔥 New card created:', newCard);
+      const newCard = await createCard(currentPage.id, blockId, data);
+      console.log('🔥 createCard API call successful:', newCard);
 
-      const updatedPage = {
-        ...currentPage,
-        blocks: [{
-          ...currentPage.blocks[0],
-          cards: [...currentPage.blocks[0].cards, newCard]
-        }],
-        updatedAt: new Date().toISOString()
-      };
-
-      console.log('🔥 Updated page prepared:', updatedPage);
-      console.log('🔥 Calling updatePage API...');
-
-      await updatePage(currentPage.id, updatedPage);
-
-      console.log('🔥 updatePage API call successful');
-      setCurrentPage(updatedPage);
-      console.log('🔥 Local page state updated');
+      // Update current page state (should already be updated by createCard hook)
+      const updatedPage = pages.find(p => p.id === currentPage.id);
+      if (updatedPage) {
+        setCurrentPage(updatedPage);
+        console.log('🔥 Current page state updated');
+      }
 
       setShowCreateCardForm(false);
       console.log('🔥 Form closed');
