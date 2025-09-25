@@ -6,6 +6,7 @@ import { IconProvider } from './providers/IconProvider'
 import { ToastProvider } from './contexts/ToastContext'
 import { AuthProvider } from './contexts/AuthContext'
 import { ToastContainer } from './components/Toast/ToastContainer'
+import { DebugPanel } from './components/Debug/DebugPanel'
 
 function App() {
   const { webApp, isReady } = useTelegramWebApp()
@@ -39,6 +40,7 @@ function App() {
           <div className="twa-root min-h-screen">
             <AppRouter />
             <ToastContainer />
+            <DebugPanel />
           </div>
         </IconProvider>
       </ToastProvider>
