@@ -44,7 +44,7 @@ export const DebugPanel: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   const { user, isAuthenticated, isLoading: authLoading, error: authError } = useAuth();
-  const { webApp, isReady: telegramReady } = useTelegramWebApp();
+  const { webApp } = useTelegramWebApp();
 
   const collectDebugInfo = async () => {
     setIsLoading(true);
