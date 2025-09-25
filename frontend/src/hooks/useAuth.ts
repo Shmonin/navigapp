@@ -12,11 +12,26 @@ interface AuthState {
 
 export const useAuth = () => {
   const { webApp, isReady } = useTelegramWebApp();
-  const [authState, setAuthState] = useState<AuthState>({
-    user: null,
-    isLoading: true,
-    isAuthenticated: false,
-    error: null
+  const [authState, setAuthState] = useState<AuthState>(() => {
+    // Initialize state from localStorage immediately
+    const existingUser = authApi.getCurrentUser();
+    const existingToken = localStorage.getItem('auth_token');
+
+    if (existingUser && existingToken) {
+      return {
+        user: existingUser,
+        isLoading: false,
+        isAuthenticated: true,
+        error: null
+      };
+    }
+
+    return {
+      user: null,
+      isLoading: true,
+      isAuthenticated: false,
+      error: null
+    };
   });
 
   const authenticate = useCallback(async () => {
@@ -24,21 +39,6 @@ export const useAuth = () => {
       setAuthState(prev => ({ ...prev, isLoading: true, error: null }));
 
       console.log('🔐 Starting authentication...');
-
-      // Check if we already have a valid user in localStorage
-      const existingUser = authApi.getCurrentUser();
-      const existingToken = localStorage.getItem('auth_token');
-
-      if (existingUser && existingToken && existingToken !== 'demo-token') {
-        console.log('🔐 Found existing valid authentication:', existingUser);
-        setAuthState({
-          user: existingUser,
-          isLoading: false,
-          isAuthenticated: true,
-          error: null
-        });
-        return;
-      }
 
       // Get initData from Telegram WebApp
       let initData = '';
@@ -117,10 +117,11 @@ export const useAuth = () => {
 
   // Initialize authentication when Telegram WebApp is ready
   useEffect(() => {
-    if (isReady) {
+    if (isReady && !authState.isAuthenticated) {
+      // Only authenticate if not already authenticated
       authenticate();
     }
-  }, [isReady, authenticate]);
+  }, [isReady, authenticate, authState.isAuthenticated]);
 
   return {
     ...authState,
