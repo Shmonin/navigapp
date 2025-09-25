@@ -8,7 +8,6 @@ export interface User {
   subscriptionStatus?: 'active' | 'inactive' | 'trial' | 'expired';
   subscriptionExpiresAt?: string;
   trialExpiresAt?: string;
-  isDemo?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }

@@ -86,12 +86,9 @@ export function validateTelegramWebAppData(initData: string): TelegramInitData |
   }
 }
 
-// For development/testing - accept demo data
-export function isDemoMode(initData: string): boolean {
-  return initData === 'demo-init-data' || initData.startsWith('demo:');
-}
+// No demo mode - only real Telegram authentication is allowed
 
-// Simple JWT token validation for now
+// Simple JWT token validation - only real user tokens allowed
 export async function validateAuthToken(authHeader: string | null): Promise<any> {
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return null;
@@ -99,11 +96,10 @@ export async function validateAuthToken(authHeader: string | null): Promise<any>
 
   const token = authHeader.replace('Bearer ', '');
 
-  // For now, we'll do a simple token validation
-  // In production, this should validate JWT tokens properly
-  if (token.startsWith('jwt-user-') || token.startsWith('demo-token')) {
-    const userId = token.includes('demo') ? 'demo-user' : token.split('-')[2];
-    return { userId, isDemo: token.includes('demo') };
+  // Only validate real user JWT tokens (no demo tokens)
+  if (token.startsWith('jwt-user-')) {
+    const userId = token.split('-')[2];
+    return { userId };
   }
 
   return null;

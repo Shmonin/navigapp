@@ -51,11 +51,18 @@ export const useAuth = () => {
         initData = webApp.initData;
         console.log('🔐 Got initData from Telegram WebApp:', initData.substring(0, 50) + '...');
       } else {
-        // Fallback for development or when Telegram is not available
-        console.warn('🔐 Telegram WebApp not available, using demo mode');
+        // App only works in Telegram - show error
+        console.error('🔐 App works only in Telegram Mini App environment');
         console.log('🔐 WebApp availability:', !!webApp);
         console.log('🔐 InitData availability:', !!webApp?.initData);
-        initData = 'demo-init-data';
+
+        setAuthState({
+          user: null,
+          isLoading: false,
+          isAuthenticated: false,
+          error: 'Приложение работает только в Telegram Mini App'
+        });
+        return;
       }
 
       // Authenticate with backend
@@ -74,35 +81,29 @@ export const useAuth = () => {
     } catch (error) {
       console.error('🔐 Authentication failed:', error);
 
-      // For demo/development, create a fallback user
-      const fallbackUser: User = {
-        id: 'demo-user',
-        telegramId: '12345',
-        firstName: 'Demo User',
-        lastName: '',
-        username: 'demo_user',
-        subscriptionType: 'free',
-        isDemo: true
-      };
-
-      // Save fallback user to localStorage
-      localStorage.setItem('auth_token', 'demo-token');
-      localStorage.setItem('user_data', JSON.stringify(fallbackUser));
+      // Clear any stored auth data
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('user_data');
+      localStorage.removeItem('refresh_token');
 
       setAuthState({
-        user: fallbackUser,
+        user: null,
         isLoading: false,
-        isAuthenticated: true,
-        error: null
+        isAuthenticated: false,
+        error: 'Ошибка авторизации через Telegram'
       });
-
-      console.log('🔐 Using fallback demo user for development');
     }
   }, [webApp]);
 
   const logout = useCallback(async () => {
     try {
       await authApi.logout();
+
+      // Clear all stored auth data
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('user_data');
+      localStorage.removeItem('refresh_token');
+
       setAuthState({
         user: null,
         isLoading: false,

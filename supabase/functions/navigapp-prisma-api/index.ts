@@ -2,7 +2,6 @@ import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { db } from './database.ts';
 import {
   validateTelegramWebAppData,
-  isDemoMode,
   validateAuthToken,
   generateAuthToken,
   generateRefreshToken,
@@ -359,39 +358,23 @@ serve(async (req) => {
       try {
         const { initData } = await req.json();
 
-        let userData = null;
-        let isDemo = false;
+        // Validate Telegram data (no demo mode allowed)
+        const userData = validateTelegramWebAppData(initData);
 
-        // Check if demo mode
-        if (isDemoMode(initData)) {
-          isDemo = true;
-          userData = {
-            user: {
-              id: 12345,
-              first_name: 'Demo User',
-              username: 'demo_user'
-            },
-            auth_date: Math.floor(Date.now() / 1000)
-          };
-        } else {
-          // Validate real Telegram data
-          userData = validateTelegramWebAppData(initData);
-
-          if (!userData || !userData.user) {
-            return new Response(
-              JSON.stringify({
-                success: false,
-                error: {
-                  message: 'Invalid Telegram authentication data',
-                  code: 'INVALID_AUTH_DATA'
-                }
-              }),
-              {
-                status: 401,
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        if (!userData || !userData.user) {
+          return new Response(
+            JSON.stringify({
+              success: false,
+              error: {
+                message: 'Invalid Telegram authentication data. App works only in Telegram.',
+                code: 'INVALID_AUTH_DATA'
               }
-            );
-          }
+            }),
+            {
+              status: 401,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+            }
+          );
         }
 
         // Save or update user in database
@@ -438,7 +421,6 @@ serve(async (req) => {
                 lastName: user.last_name,
                 username: user.username,
                 subscriptionType: dbUser.subscription_type || 'free',
-                isDemo: isDemo,
                 savedToDb: true
               },
               token: authToken,
